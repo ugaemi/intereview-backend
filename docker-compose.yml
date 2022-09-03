@@ -1,0 +1,29 @@
+version: "3"
+
+services:
+  backend:
+    build: .
+    volumes:
+      - .:/code
+    container_name: intereview-backend
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    command:
+      "gunicorn -c config/gunicorn-conf.py --bind 0.0.0.0:8000 config.wsgi:application"
+
+  nginx:
+    image: nginx:latest
+    container_name: intereview-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config:/etc/nginx/conf.d
+    command:
+      "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    depends_on:
+      - backend
