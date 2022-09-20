@@ -1,13 +1,11 @@
 from datetime import timedelta, datetime
 from typing import Optional
 
-from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.config import SECRET_KEY, ALGORITHM
-from app.exceptions import get_user_exception
 from app.models.accounts import User
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -42,15 +40,3 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(minutes=15)
     encode.update({"exp": expire})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-async def get_current_user(token: str = Depends(oauth2_bearer)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        user_id: int = payload.get("id")
-        if username is None or user_id is None:
-            raise get_user_exception()
-        return {"username": username, "id": user_id}
-    except JWTError:
-        raise get_user_exception()
