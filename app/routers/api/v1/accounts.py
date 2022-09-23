@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from fastapi import Depends, APIRouter
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi_mail import MessageSchema, FastMail
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,7 @@ from app.exceptions import (
     username_exist_exception,
     not_match_exception,
 )
+from app.mail import mail_conf
 from app.models.accounts import User
 from app.schemas.accounts import FindUsername, CreateUser
 from app.services.accounts import (
@@ -74,6 +76,13 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.email == data.platform_data).first()
         if user is None or user.name != data.name:
             raise not_match_exception()
+        message = MessageSchema(
+            subject="[인터리뷰] 인증코드가 도착했습니다.",
+            recipients=[data.platform_data],
+            body="인증코드!",
+        )
+        fm = FastMail(mail_conf)
+        await fm.send_message(message)
     else:
         user = db.query(User).filter(User.phone == data.platform_data).first()
         if user is None or user.name != data.name:
