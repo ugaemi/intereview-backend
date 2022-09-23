@@ -7,9 +7,15 @@ from sqlalchemy.orm import Session
 
 from app.config import ALGORITHM, SECRET_KEY
 from app.database import get_db
-from app.exceptions import token_exception, get_user_exception
+from app.enums.accounts import Platform
+from app.exceptions import (
+    token_exception,
+    get_user_exception,
+    username_exist_exception,
+    not_match_exception,
+)
 from app.models.accounts import User
-from app.schemas.accounts import CreateUser
+from app.schemas.accounts import FindUsername, CreateUser
 from app.services.accounts import (
     get_password_hash,
     authenticate_user,
@@ -18,18 +24,20 @@ from app.services.accounts import (
 )
 
 router = APIRouter(
-    prefix="/api/v1/users",
-    tags=["users"],
+    prefix="/api/v1/accounts",
+    tags=["accounts"],
 )
 
 
 @router.post("/")
-async def create_new_user(create_user: CreateUser, db: Session = Depends(get_db)):
+async def create_new_user(data: CreateUser, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == data.email).first() is not None:
+        raise username_exist_exception()
     create_user_model = User()
-    create_user_model.email = create_user.email
-    create_user_model.username = create_user.username
-    create_user_model.name = create_user.name
-    create_user_model.password = get_password_hash(create_user.password)
+    create_user_model.email = data.email
+    create_user_model.username = data.username
+    create_user_model.name = data.name
+    create_user_model.password = get_password_hash(data.password)
     db.add(create_user_model)
     db.commit()
 
@@ -58,3 +66,15 @@ async def get_current_user(token: str = Depends(oauth2_bearer)):
         return {"username": username, "id": user_id}
     except JWTError:
         raise get_user_exception()
+
+
+@router.post("/find/username")
+async def find_username(data: FindUsername, db: Session = Depends(get_db)):
+    if data.platform.value == Platform.email:
+        user = db.query(User).filter(User.email == data.platform_data).first()
+        if user is None or user.name != data.name:
+            raise not_match_exception()
+    else:
+        user = db.query(User).filter(User.phone == data.platform_data).first()
+        if user is None or user.name != data.name:
+            raise not_match_exception()

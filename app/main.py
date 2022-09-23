@@ -9,7 +9,6 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI()
 app.include_router(accounts.router)
 
-
 origins = [
     "http://localhost",
     "http://localhost:3000",

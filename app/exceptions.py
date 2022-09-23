@@ -16,3 +16,19 @@ def token_exception():
         detail="아이디 혹은 비밀번호가 맞지 않습니다.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def username_exist_exception():
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="이미 존재하는 아이디입니다.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def not_match_exception():
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="일치하는 정보가 없습니다.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
