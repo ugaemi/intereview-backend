@@ -1,3 +1,5 @@
+import random
+import string
 from datetime import timedelta, datetime
 from typing import Optional
 
@@ -40,3 +42,9 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(minutes=15)
     encode.update({"exp": expire})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def generate_verification_code(size: int) -> str:
+    return "".join(
+        [random.choice(string.ascii_uppercase + string.digits) for n in range(size)]
+    )

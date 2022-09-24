@@ -23,6 +23,7 @@ from app.services.accounts import (
     authenticate_user,
     create_access_token,
     oauth2_bearer,
+    generate_verification_code,
 )
 
 router = APIRouter(
@@ -79,10 +80,12 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         message = MessageSchema(
             subject="[인터리뷰] 인증코드가 도착했습니다.",
             recipients=[data.platform_data],
-            body="인증코드!",
+            template_body={
+                "code": generate_verification_code(6),
+            },
         )
         fm = FastMail(mail_conf)
-        await fm.send_message(message)
+        await fm.send_message(message, template_name="accounts/verification_code.html")
     else:
         user = db.query(User).filter(User.phone == data.platform_data).first()
         if user is None or user.name != data.name:
