@@ -21,8 +21,26 @@ def token_exception():
 def username_exist_exception():
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,
-        detail="이미 존재하는 아이디입니다.",
-        headers={"WWW-Authenticate": "Bearer"},
+        detail=[
+            {
+                "loc": ["body", "username"],
+                "msg": "이미 존재하는 아이디입니다.",
+                "type": "value_error.conflict",
+            }
+        ],
+    )
+
+
+def email_exist_exception():
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=[
+            {
+                "loc": ["body", "email"],
+                "msg": "이미 존재하는 이메일입니다.",
+                "type": "value_error.conflict",
+            }
+        ],
     )
 
 

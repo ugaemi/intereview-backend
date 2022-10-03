@@ -1,14 +1,21 @@
 from pydantic import BaseModel, Field, EmailStr, validator
 
 from app.enums.accounts import Platform
+from app.services.accounts import get_valid_phone
 
 
 class CreateUser(BaseModel):
     username: str = Field(min_length=4, max_length=12)
     email: EmailStr
     name: str = Field(min_length=3, max_length=30)
-    password: str
-    phone: str
+    password: str = Field(min_length=8)
+    phone: str = Field(min_length=11)
+
+    @validator("phone")
+    def phone_valid(cls, v):
+        if not get_valid_phone(v):
+            raise ValueError("전화번호 형식에 맞지 않습니다.")
+        return v
 
 
 class FindUsername(BaseModel):

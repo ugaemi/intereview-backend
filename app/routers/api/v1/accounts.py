@@ -17,6 +17,7 @@ from app.exceptions import (
     not_match_exception,
     not_verification_exception,
     invalid_phone_exception,
+    email_exist_exception,
 )
 from app.mail import mail_conf
 from app.models.accounts import User
@@ -47,6 +48,8 @@ router = APIRouter(
 @router.post("/")
 async def create_new_user(data: CreateUser, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first() is not None:
+        raise email_exist_exception()
+    if db.query(User).filter(User.username == data.username).first() is not None:
         raise username_exist_exception()
     valid_phone = get_valid_phone(data.phone)
     create_user_model = User()
