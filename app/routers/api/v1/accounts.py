@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 
 from fastapi import Depends, APIRouter
@@ -14,10 +15,12 @@ from app.exceptions import (
     get_user_exception,
     username_exist_exception,
     not_match_exception,
+    not_verification,
 )
 from app.mail import mail_conf
 from app.models.accounts import User
-from app.schemas.accounts import FindUsername, CreateUser
+from app.redis import DB_VERIFICATION_CODE
+from app.schemas.accounts import FindUsername, CreateUser, VerifyCode
 from app.services.accounts import (
     get_password_hash,
     authenticate_user,
@@ -61,7 +64,6 @@ async def login_for_access_token(
 async def get_current_user(token: str = Depends(oauth2_bearer)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print(payload)
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
         if username is None or user_id is None:
@@ -77,16 +79,26 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.email == data.platform_data).first()
         if user is None or user.name != data.name:
             raise not_match_exception()
+        verification_code = generate_verification_code(6)
         message = MessageSchema(
             subject="[인터리뷰] 인증코드가 도착했습니다.",
             recipients=[data.platform_data],
             template_body={
-                "code": generate_verification_code(6),
+                "code": verification_code,
             },
         )
         fm = FastMail(mail_conf)
+        await DB_VERIFICATION_CODE.set(
+            user.email, verification_code, datetime.timedelta(minutes=5)
+        )
         await fm.send_message(message, template_name="accounts/verification_code.html")
     else:
         user = db.query(User).filter(User.phone == data.platform_data).first()
         if user is None or user.name != data.name:
             raise not_match_exception()
+
+
+@router.post("/find/verification")
+async def verify_code(data: VerifyCode):
+    if await DB_VERIFICATION_CODE.get(f"{data.email}") != data.code:
+        raise not_verification()

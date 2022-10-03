@@ -9,3 +9,5 @@ MAIL_PASSWORD = config("MAIL_PASSWORD")
 MAIL_PORT = 587
 MAIL_SERVER = "smtp.gmail.com"
 MAIL_FROM_NAME = "intereview"
+
+REDIS_HOST = config("REDIS_HOST")

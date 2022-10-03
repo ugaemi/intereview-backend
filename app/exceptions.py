@@ -32,3 +32,11 @@ def not_match_exception():
         detail="일치하는 정보가 없습니다.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def not_verification():
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="유효하지 않은 코드입니다.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )

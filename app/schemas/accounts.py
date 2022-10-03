@@ -14,3 +14,8 @@ class FindUsername(BaseModel):
     platform: Platform
     platform_data: EmailStr | str
     name: str = Field(min_length=2, max_length=20)
+
+
+class VerifyCode(BaseModel):
+    email: EmailStr
+    code: str
