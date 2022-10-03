@@ -7,7 +7,7 @@ from fastapi_mail import MessageSchema, FastMail
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from app.config import ALGORITHM, SECRET_KEY
+from app.config import ALGORITHM, SECRET_KEY, TWILIO_PHONE_NUMBER
 from app.database import get_db
 from app.enums.accounts import Platform
 from app.exceptions import (
@@ -29,6 +29,7 @@ from app.services.accounts import (
     generate_verification_code,
     get_valid_phone,
 )
+from app.twilio import client
 
 router = APIRouter(
     prefix="/api/v1/accounts",
@@ -97,9 +98,26 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         )
         await fm.send_message(message, template_name="accounts/verification_code.html")
     else:
-        user = db.query(User).filter(User.phone == data.platform_data).first()
+        valid_phone = get_valid_phone(data.platform_data)
+        user = (
+            db.query(User)
+            .filter(
+                User.phone_country_code == valid_phone.country_code
+                and User.phone_national_number == valid_phone.national_number
+            )
+            .first()
+        )
         if user is None or user.name != data.name:
             raise not_match_exception()
+        verification_code = generate_verification_code(6)
+        await DB_VERIFICATION_CODE.set(
+            data.platform_data, verification_code, datetime.timedelta(minutes=5)
+        )
+        client.messages.create(
+            body=f"[인터리뷰] 인증코드는 {verification_code}입니다.",
+            from_=TWILIO_PHONE_NUMBER,
+            to=data.platform_data,
+        )
 
 
 @router.post("/find/verification")
