@@ -18,5 +18,6 @@ class FindUsername(BaseModel):
 
 
 class VerifyCode(BaseModel):
-    email: EmailStr
+    platform: Platform
+    platform_data: EmailStr | str
     code: str

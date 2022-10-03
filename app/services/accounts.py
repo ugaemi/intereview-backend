@@ -8,9 +8,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from passlib.context import CryptContext
 from phonenumbers import PhoneNumber
+from phonenumbers.phonenumberutil import NumberParseException
 
 from app.config import SECRET_KEY, ALGORITHM
-from app.exceptions import invalid_phone_exception
 from app.models.accounts import User
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -51,8 +51,11 @@ def generate_verification_code(size: int) -> str:
     return "".join([random.choice(string.digits) for _ in range(size)])
 
 
-def get_valid_phone(number: str) -> PhoneNumber:
-    parsed_number = phonenumbers.parse(number)
+def get_valid_phone(number: str) -> bool | PhoneNumber:
+    try:
+        parsed_number = phonenumbers.parse(number)
+    except NumberParseException:
+        return False
     if not phonenumbers.is_possible_number(parsed_number):
-        raise invalid_phone_exception()
+        return False
     return parsed_number

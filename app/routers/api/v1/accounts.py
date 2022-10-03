@@ -16,6 +16,7 @@ from app.exceptions import (
     username_exist_exception,
     not_match_exception,
     not_verification_exception,
+    invalid_phone_exception,
 )
 from app.mail import mail_conf
 from app.models.accounts import User
@@ -99,6 +100,8 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         await fm.send_message(message, template_name="accounts/verification_code.html")
     else:
         valid_phone = get_valid_phone(data.platform_data)
+        if not valid_phone:
+            raise invalid_phone_exception()
         user = (
             db.query(User)
             .filter(
@@ -122,7 +125,20 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
 
 @router.post("/find/verification")
 async def verify_code(data: VerifyCode, db: Session = Depends(get_db)) -> dict:
-    if await DB_VERIFICATION_CODE.get(f"{data.email}") != data.code:
+    if await DB_VERIFICATION_CODE.get(f"{data.platform_data}") != data.code:
         raise not_verification_exception()
-    user = db.query(User).filter(User.email == data.email).first()
+    if data.platform == Platform.email:
+        user = db.query(User).filter(User.email == data.platform_data).first()
+    elif data.platform == Platform.phone:
+        valid_phone = get_valid_phone(data.platform_data)
+        user = (
+            db.query(User)
+            .filter(
+                User.phone_country_code == valid_phone.country_code
+                and User.phone_national_number == valid_phone.national_number
+            )
+            .first()
+        )
+    else:
+        raise not_match_exception()
     return {"username": user.username}
