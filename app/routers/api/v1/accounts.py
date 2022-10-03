@@ -7,7 +7,7 @@ from fastapi_mail import MessageSchema, FastMail
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from app.config import ALGORITHM, SECRET_KEY, TWILIO_PHONE_NUMBER
+from app.config import ALGORITHM, SECRET_KEY, TWILIO_PHONE_NUMBER, DASHBOARD_HOST
 from app.database import get_db
 from app.enums.accounts import Platform
 from app.exceptions import (
@@ -21,7 +21,12 @@ from app.exceptions import (
 from app.mail import mail_conf
 from app.models.accounts import User
 from app.redis import DB_VERIFICATION_CODE
-from app.schemas.accounts import FindUsername, CreateUser, VerifyCode
+from app.schemas.accounts import (
+    FindUsername,
+    CreateUser,
+    VerifyCode,
+    GetResetPasswordLink,
+)
 from app.services.accounts import (
     get_password_hash,
     authenticate_user,
@@ -105,8 +110,8 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         user = (
             db.query(User)
             .filter(
-                User.phone_country_code == valid_phone.country_code
-                and User.phone_national_number == valid_phone.national_number
+                User.phone_country_code == valid_phone.country_code,
+                User.phone_national_number == valid_phone.national_number,
             )
             .first()
         )
@@ -123,7 +128,7 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/find/verification")
+@router.post("/find/username/verification")
 async def verify_code(data: VerifyCode, db: Session = Depends(get_db)) -> dict:
     if await DB_VERIFICATION_CODE.get(f"{data.platform_data}") != data.code:
         raise not_verification_exception()
@@ -134,11 +139,37 @@ async def verify_code(data: VerifyCode, db: Session = Depends(get_db)) -> dict:
         user = (
             db.query(User)
             .filter(
-                User.phone_country_code == valid_phone.country_code
-                and User.phone_national_number == valid_phone.national_number
+                User.phone_country_code == valid_phone.country_code,
+                User.phone_national_number == valid_phone.national_number,
             )
             .first()
         )
     else:
         raise not_match_exception()
     return {"username": user.username}
+
+
+@router.post("/reset/password/link")
+async def get_reset_password_link(
+    data: GetResetPasswordLink, db: Session = Depends(get_db)
+):
+    user = (
+        db.query(User)
+        .filter(User.username == data.username, User.email == data.email)
+        .first()
+    )
+    if not user:
+        raise not_match_exception()
+    verification_code = generate_verification_code(6)
+    message = MessageSchema(
+        subject="[인터리뷰] 비밀번호 재설정 링크가 도착했습니다.",
+        recipients=[user.email],
+        template_body={
+            "link": f"{DASHBOARD_HOST}/accounts/reset/password?username={user.username}&code={verification_code}",
+        },
+    )
+    fm = FastMail(mail_conf)
+    await DB_VERIFICATION_CODE.set(
+        user.email, verification_code, datetime.timedelta(minutes=5)
+    )
+    await fm.send_message(message, template_name="accounts/reset_password.html")

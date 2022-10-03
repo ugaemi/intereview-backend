@@ -21,3 +21,8 @@ class VerifyCode(BaseModel):
     platform: Platform
     platform_data: EmailStr | str
     code: str
+
+
+class GetResetPasswordLink(BaseModel):
+    username: str = Field(min_length=4, max_length=12)
+    email: EmailStr
