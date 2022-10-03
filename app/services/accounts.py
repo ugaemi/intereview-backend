@@ -45,6 +45,4 @@ def create_access_token(
 
 
 def generate_verification_code(size: int) -> str:
-    return "".join(
-        [random.choice(string.ascii_uppercase + string.digits) for n in range(size)]
-    )
+    return "".join([random.choice(string.digits) for _ in range(size)])
