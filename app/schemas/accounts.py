@@ -8,6 +8,7 @@ class CreateUser(BaseModel):
     email: EmailStr
     name: str = Field(min_length=3, max_length=30)
     password: str
+    phone: str
 
 
 class FindUsername(BaseModel):

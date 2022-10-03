@@ -34,9 +34,16 @@ def not_match_exception():
     )
 
 
-def not_verification():
+def not_verification_exception():
     return HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="유효하지 않은 코드입니다.",
         headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def invalid_phone_exception():
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="전화번호 형식에 맞지 않습니다.",
     )

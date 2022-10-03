@@ -15,7 +15,7 @@ from app.exceptions import (
     get_user_exception,
     username_exist_exception,
     not_match_exception,
-    not_verification,
+    not_verification_exception,
 )
 from app.mail import mail_conf
 from app.models.accounts import User
@@ -27,6 +27,7 @@ from app.services.accounts import (
     create_access_token,
     oauth2_bearer,
     generate_verification_code,
+    get_valid_phone,
 )
 
 router = APIRouter(
@@ -39,11 +40,14 @@ router = APIRouter(
 async def create_new_user(data: CreateUser, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first() is not None:
         raise username_exist_exception()
+    valid_phone = get_valid_phone(data.phone)
     create_user_model = User()
     create_user_model.email = data.email
     create_user_model.username = data.username
     create_user_model.name = data.name
     create_user_model.password = get_password_hash(data.password)
+    create_user_model.phone_country_code = valid_phone.country_code
+    create_user_model.phone_national_number = valid_phone.national_number
     db.add(create_user_model)
     db.commit()
 
@@ -99,6 +103,8 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
 
 
 @router.post("/find/verification")
-async def verify_code(data: VerifyCode):
+async def verify_code(data: VerifyCode, db: Session = Depends(get_db)) -> dict:
     if await DB_VERIFICATION_CODE.get(f"{data.email}") != data.code:
-        raise not_verification()
+        raise not_verification_exception()
+    user = db.query(User).filter(User.email == data.email).first()
+    return {"username": user.username}

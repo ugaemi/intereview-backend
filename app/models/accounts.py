@@ -16,3 +16,5 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, default=datetime.now())
     joined_datetime = Column(DateTime, default=datetime.now())
+    phone_country_code = Column(String)
+    phone_national_number = Column(String)

@@ -3,11 +3,14 @@ import string
 from datetime import timedelta, datetime
 from typing import Optional
 
+import phonenumbers
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from passlib.context import CryptContext
+from phonenumbers import PhoneNumber
 
 from app.config import SECRET_KEY, ALGORITHM
+from app.exceptions import invalid_phone_exception
 from app.models.accounts import User
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -46,3 +49,10 @@ def create_access_token(
 
 def generate_verification_code(size: int) -> str:
     return "".join([random.choice(string.digits) for _ in range(size)])
+
+
+def get_valid_phone(number: str) -> PhoneNumber:
+    parsed_number = phonenumbers.parse(number)
+    if not phonenumbers.is_possible_number(parsed_number):
+        raise invalid_phone_exception()
+    return parsed_number
