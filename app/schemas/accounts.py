@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, validator
 
 from app.enums.accounts import Platform
 
@@ -17,7 +17,7 @@ class FindUsername(BaseModel):
     name: str = Field(min_length=2, max_length=20)
 
 
-class VerifyCode(BaseModel):
+class VerifyCodeForUsername(BaseModel):
     platform: Platform
     platform_data: EmailStr | str
     code: str
@@ -26,3 +26,16 @@ class VerifyCode(BaseModel):
 class GetResetPasswordLink(BaseModel):
     username: str = Field(min_length=4, max_length=12)
     email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    username: str
+    code: str
+    password: str
+    password2: str
+
+    @validator("password2")
+    def passwords_match(cls, v, values, **kwargs):
+        if "password" in values and v != values["password"]:
+            raise ValueError("비밀번호가 일치하지 않습니다.")
+        return v

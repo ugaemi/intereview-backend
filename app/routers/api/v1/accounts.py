@@ -24,8 +24,9 @@ from app.redis import DB_VERIFICATION_CODE
 from app.schemas.accounts import (
     FindUsername,
     CreateUser,
-    VerifyCode,
+    VerifyCodeForUsername,
     GetResetPasswordLink,
+    ResetPassword,
 )
 from app.services.accounts import (
     get_password_hash,
@@ -129,7 +130,9 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
 
 
 @router.post("/find/username/verification")
-async def verify_code(data: VerifyCode, db: Session = Depends(get_db)) -> dict:
+async def verify_code_for_username(
+    data: VerifyCodeForUsername, db: Session = Depends(get_db)
+) -> dict:
     if await DB_VERIFICATION_CODE.get(f"{data.platform_data}") != data.code:
         raise not_verification_exception()
     if data.platform == Platform.email:
@@ -165,11 +168,21 @@ async def get_reset_password_link(
         subject="[인터리뷰] 비밀번호 재설정 링크가 도착했습니다.",
         recipients=[user.email],
         template_body={
-            "link": f"{DASHBOARD_HOST}/accounts/reset/password?username={user.username}&code={verification_code}",
+            "link": f"{DASHBOARD_HOST}/accounts/find/password/reset?username={user.username}&code={verification_code}",
         },
     )
     fm = FastMail(mail_conf)
     await DB_VERIFICATION_CODE.set(
-        user.email, verification_code, datetime.timedelta(minutes=5)
+        user.username, verification_code, datetime.timedelta(minutes=10)
     )
     await fm.send_message(message, template_name="accounts/reset_password.html")
+
+
+@router.post("/reset/password")
+async def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
+    if await DB_VERIFICATION_CODE.get(f"{data.username}") != data.code:
+        raise not_verification_exception()
+    user = db.query(User).filter(User.username == data.username).first()
+    user.password = get_password_hash(data.password)
+    db.add(user)
+    db.commit()
