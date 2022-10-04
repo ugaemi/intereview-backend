@@ -13,7 +13,18 @@ def get_user_exception():
 def token_exception():
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="아이디 혹은 비밀번호가 맞지 않습니다.",
+        detail=[
+            {
+                "loc": ["body", "username"],
+                "msg": "아이디 혹은 비밀번호가 맞지 않습니다.",
+                "type": "value_error.unauthorized",
+            },
+            {
+                "loc": ["body", "password"],
+                "msg": "아이디 혹은 비밀번호가 맞지 않습니다.",
+                "type": "value_error.unauthorized",
+            },
+        ],
         headers={"WWW-Authenticate": "Bearer"},
     )
 

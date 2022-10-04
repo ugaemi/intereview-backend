@@ -72,7 +72,12 @@ async def login_for_access_token(
         raise token_exception()
     token_expires = timedelta(minutes=20)
     token = create_access_token(user.username, user.id, expires_delta=token_expires)
-    return {"token": token}
+    return {
+        "access_token": token,
+        "token_type": "Bearer",
+        "username": user.username,
+        "id": user.id,
+    }
 
 
 @router.get("/me")
@@ -189,3 +194,11 @@ async def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
     user.password = get_password_hash(data.password)
     db.add(user)
     db.commit()
+
+
+@router.get("/profile")
+async def get_profile(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict:
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    return {"name": user.name}

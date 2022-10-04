@@ -15,7 +15,7 @@ from app.models.accounts import User
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="users/token")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="api/v1/accounts/token")
 
 
 def get_password_hash(password: str) -> str:
