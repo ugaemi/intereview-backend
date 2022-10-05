@@ -18,6 +18,10 @@ class CreateUser(BaseModel):
         return v
 
 
+class WithdrawUser(BaseModel):
+    password: str
+
+
 class FindUsername(BaseModel):
     platform: Platform
     platform_data: EmailStr | str

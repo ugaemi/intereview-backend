@@ -13,14 +13,14 @@ from app.enums.accounts import Platform
 from app.exceptions import (
     token_exception,
     get_user_exception,
-    username_exist_exception,
     not_match_exception,
     not_verification_exception,
     invalid_phone_exception,
+    username_exist_exception,
     email_exist_exception,
 )
 from app.mail import mail_conf
-from app.models.accounts import User
+from app.models.accounts import User, UserInfo
 from app.redis import DB_VERIFICATION_CODE
 from app.schemas.accounts import (
     FindUsername,
@@ -47,20 +47,31 @@ router = APIRouter(
 
 @router.post("/")
 async def create_new_user(data: CreateUser, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == data.email).first() is not None:
-        raise email_exist_exception()
-    if db.query(User).filter(User.username == data.username).first() is not None:
-        raise username_exist_exception()
     valid_phone = get_valid_phone(data.phone)
-    create_user_model = User()
-    create_user_model.email = data.email
-    create_user_model.username = data.username
-    create_user_model.name = data.name
-    create_user_model.password = get_password_hash(data.password)
-    create_user_model.phone_country_code = valid_phone.country_code
-    create_user_model.phone_national_number = valid_phone.national_number
-    db.add(create_user_model)
-    db.commit()
+    try:
+        user = User(
+            username=data.username,
+            password=get_password_hash(data.password),
+        )
+        db.add(user)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise username_exist_exception()
+    try:
+        user = db.query(User).filter(User.username == user.username).first()
+        user_info = UserInfo(
+            email=data.email,
+            name=data.name,
+            phone_country_code=valid_phone.country_code,
+            phone_national_number=valid_phone.national_number,
+            user=user,
+        )
+        db.add(user_info)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise email_exist_exception()
 
 
 @router.post("/token")
@@ -93,11 +104,36 @@ async def get_current_user(token: str = Depends(oauth2_bearer)):
         raise get_user_exception()
 
 
+@router.get("/")
+async def get_user_account(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        raise not_match_exception()
+    return {"joined_date": datetime.datetime.strftime(user.joined_datetime, "%Y-%m-%d")}
+
+
+@router.post("/withdraw")
+async def withdraw_account(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        raise not_match_exception()
+    user.is_active = False
+    user.withdrawal_datetime = datetime.datetime.now()
+    db.add(user)
+    db.commit()
+
+
 @router.post("/find/username")
 async def find_username(data: FindUsername, db: Session = Depends(get_db)):
     if data.platform.value == Platform.email:
-        user = db.query(User).filter(User.email == data.platform_data).first()
-        if user is None or user.name != data.name:
+        user_info = (
+            db.query(UserInfo).filter(UserInfo.email == data.platform_data).first()
+        )
+        if user_info is None or user_info.name != data.name:
             raise not_match_exception()
         verification_code = generate_verification_code(6)
         message = MessageSchema(
@@ -109,22 +145,22 @@ async def find_username(data: FindUsername, db: Session = Depends(get_db)):
         )
         fm = FastMail(mail_conf)
         await DB_VERIFICATION_CODE.set(
-            user.email, verification_code, datetime.timedelta(minutes=5)
+            user_info.email, verification_code, datetime.timedelta(minutes=5)
         )
         await fm.send_message(message, template_name="accounts/verification_code.html")
     else:
         valid_phone = get_valid_phone(data.platform_data)
         if not valid_phone:
             raise invalid_phone_exception()
-        user = (
-            db.query(User)
+        user_info = (
+            db.query(UserInfo)
             .filter(
-                User.phone_country_code == valid_phone.country_code,
-                User.phone_national_number == valid_phone.national_number,
+                UserInfo.phone_country_code == valid_phone.country_code,
+                UserInfo.phone_national_number == valid_phone.national_number,
             )
             .first()
         )
-        if user is None or user.name != data.name:
+        if user_info is None or user_info.name != data.name:
             raise not_match_exception()
         verification_code = generate_verification_code(6)
         await DB_VERIFICATION_CODE.set(
@@ -144,20 +180,22 @@ async def verify_code_for_username(
     if await DB_VERIFICATION_CODE.get(f"{data.platform_data}") != data.code:
         raise not_verification_exception()
     if data.platform == Platform.email:
-        user = db.query(User).filter(User.email == data.platform_data).first()
+        user_info = (
+            db.query(UserInfo).filter(UserInfo.email == data.platform_data).first()
+        )
     elif data.platform == Platform.phone:
         valid_phone = get_valid_phone(data.platform_data)
-        user = (
-            db.query(User)
+        user_info = (
+            db.query(UserInfo)
             .filter(
-                User.phone_country_code == valid_phone.country_code,
-                User.phone_national_number == valid_phone.national_number,
+                UserInfo.phone_country_code == valid_phone.country_code,
+                UserInfo.phone_national_number == valid_phone.national_number,
             )
             .first()
         )
     else:
         raise not_match_exception()
-    return {"username": user.username}
+    return {"username": user_info.username}
 
 
 @router.post("/reset/password/link")
@@ -166,7 +204,8 @@ async def get_reset_password_link(
 ):
     user = (
         db.query(User)
-        .filter(User.username == data.username, User.email == data.email)
+        .join(UserInfo, User.id == UserInfo.user_id)
+        .filter(User.username == data.username, UserInfo.email == data.email)
         .first()
     )
     if not user:
@@ -201,4 +240,10 @@ async def get_profile(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> dict:
     user = db.query(User).filter(User.id == current_user["id"]).first()
-    return {"name": user.name}
+    if not user:
+        raise not_match_exception()
+    return {
+        "name": user.name,
+        "email": user.email,
+        "phone": user.phone_country_code + user.phone_national_number,
+    }
