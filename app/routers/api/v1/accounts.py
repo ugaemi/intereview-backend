@@ -239,11 +239,13 @@ async def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
 async def get_profile(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> dict:
-    user = db.query(User).filter(User.id == current_user["id"]).first()
-    if not user:
+    user_info = (
+        db.query(UserInfo).filter(UserInfo.user_id == current_user["id"]).first()
+    )
+    if not user_info:
         raise not_match_exception()
     return {
-        "name": user.name,
-        "email": user.email,
-        "phone": user.phone_country_code + user.phone_national_number,
+        "name": user_info.name,
+        "email": user_info.email,
+        "phone": user_info.phone_country_code + user_info.phone_national_number,
     }
