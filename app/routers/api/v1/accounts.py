@@ -195,7 +195,7 @@ async def verify_code_for_username(
         )
     else:
         raise not_match_exception()
-    return {"username": user_info.username}
+    return {"username": user_info.user.username}
 
 
 @router.post("/reset/password/link")

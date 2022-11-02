@@ -8,3 +8,6 @@ __pycache__/
 # Database
 intereview.db
 dump.rdb
+
+# Test
+.pytest_cache/
