@@ -22,7 +22,7 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
-        sa.Column("username", sa.String(12), unique=True, index=True),
+        sa.Column("username", sa.String(50), unique=True, index=True),
         sa.Column("password", sa.String(20)),
         sa.Column("is_active", sa.Boolean, default=True),
         sa.Column("last_login", sa.DateTime, default=func.now()),

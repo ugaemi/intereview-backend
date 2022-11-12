@@ -7,10 +7,7 @@ from app.config import RDS_HOST
 
 SQLALCHEMY_DATABASE_URL = RDS_HOST
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
