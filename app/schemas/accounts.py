@@ -1,12 +1,10 @@
 from pydantic import BaseModel, Field, EmailStr, validator
 
-from app.enums.accounts import Platform
 from app.services.accounts import get_valid_phone
 
 
 class CreateUser(BaseModel):
-    username: str = Field(min_length=4, max_length=12)
-    email: EmailStr
+    username: EmailStr
     name: str = Field(min_length=3, max_length=30)
     password: str = Field(min_length=8)
     phone: str = Field(min_length=11)
@@ -23,20 +21,18 @@ class WithdrawUser(BaseModel):
 
 
 class FindUsername(BaseModel):
-    platform: Platform
-    platform_data: EmailStr | str
+    phone: str = Field(min_length=11)
     name: str = Field(min_length=2, max_length=20)
 
 
 class VerifyCodeForUsername(BaseModel):
-    platform: Platform
-    platform_data: EmailStr | str
+    phone: str = Field(min_length=11)
     code: str
 
 
 class GetResetPasswordLink(BaseModel):
-    username: str = Field(min_length=4, max_length=12)
-    email: EmailStr
+    name: str = Field(min_length=2, max_length=20)
+    username: EmailStr
 
 
 class ResetPassword(BaseModel):
