@@ -212,6 +212,6 @@ async def get_profile(
         raise not_match_exception()
     return {
         "name": user_info.name,
-        "email": user_info.email,
-        "phone": user_info.phone_country_code + user_info.phone_national_number,
+        "email": user_info.user.username,
+        "phone": f"{user_info.phone_country_code}{user_info.phone_national_number}",
     }
