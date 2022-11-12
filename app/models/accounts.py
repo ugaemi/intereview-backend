@@ -24,7 +24,7 @@ class UserInfo(Base):
     __tablename__ = "user_infos"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     user = relationship("User", backref=backref("info", uselist=False))
     name = Column(String(length=20))
     phone_country_code = Column(String(length=5))
