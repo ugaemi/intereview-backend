@@ -24,7 +24,6 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True, index=True),
         sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE")),
         sa.Column("name", sa.String(20)),
-        sa.Column("email", sa.String(50)),
         sa.Column("phone_country_code", sa.String(5)),
         sa.Column("phone_national_number", sa.String(12)),
         sa.Column("created_datetime", sa.DateTime, default=func.now()),
