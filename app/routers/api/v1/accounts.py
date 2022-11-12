@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.config import ALGORITHM, SECRET_KEY, TWILIO_PHONE_NUMBER, DASHBOARD_HOST
 from app.database import get_db
-from app.enums.accounts import Platform
 from app.exceptions import (
     token_exception,
     get_user_exception,
@@ -17,7 +16,6 @@ from app.exceptions import (
     not_verification_exception,
     invalid_phone_exception,
     username_exist_exception,
-    email_exist_exception,
 )
 from app.mail import mail_conf
 from app.models.accounts import User, UserInfo
@@ -58,20 +56,15 @@ async def create_new_user(data: CreateUser, db: Session = Depends(get_db)):
     except Exception:
         db.rollback()
         raise username_exist_exception()
-    try:
-        user = db.query(User).filter(User.username == user.username).first()
-        user_info = UserInfo(
-            email=data.email,
-            name=data.name,
-            phone_country_code=valid_phone.country_code,
-            phone_national_number=valid_phone.national_number,
-            user=user,
-        )
-        db.add(user_info)
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise email_exist_exception()
+    user = db.query(User).filter(User.username == user.username).first()
+    user_info = UserInfo(
+        name=data.name,
+        phone_country_code=valid_phone.country_code,
+        phone_national_number=valid_phone.national_number,
+        user=user,
+    )
+    db.add(user_info)
+    db.commit()
 
 
 @router.post("/token")
@@ -129,72 +122,45 @@ async def withdraw_account(
 
 @router.post("/find/username")
 async def find_username(data: FindUsername, db: Session = Depends(get_db)):
-    if data.platform.value == Platform.email:
-        user_info = (
-            db.query(UserInfo).filter(UserInfo.email == data.platform_data).first()
+    valid_phone = get_valid_phone(data.phone)
+    if not valid_phone:
+        raise invalid_phone_exception()
+    user_info = (
+        db.query(UserInfo)
+        .filter(
+            UserInfo.phone_country_code == str(valid_phone.country_code),
+            UserInfo.phone_national_number == str(valid_phone.national_number),
         )
-        if user_info is None or user_info.name != data.name:
-            raise not_match_exception()
-        verification_code = generate_verification_code(6)
-        message = MessageSchema(
-            subject="[인터리뷰] 인증코드가 도착했습니다.",
-            recipients=[data.platform_data],
-            template_body={
-                "code": verification_code,
-            },
-        )
-        fm = FastMail(mail_conf)
-        await DB_VERIFICATION_CODE.set(
-            user_info.email, verification_code, datetime.timedelta(minutes=5)
-        )
-        await fm.send_message(message, template_name="accounts/verification_code.html")
-    else:
-        valid_phone = get_valid_phone(data.platform_data)
-        if not valid_phone:
-            raise invalid_phone_exception()
-        user_info = (
-            db.query(UserInfo)
-            .filter(
-                UserInfo.phone_country_code == valid_phone.country_code,
-                UserInfo.phone_national_number == valid_phone.national_number,
-            )
-            .first()
-        )
-        if user_info is None or user_info.name != data.name:
-            raise not_match_exception()
-        verification_code = generate_verification_code(6)
-        await DB_VERIFICATION_CODE.set(
-            data.platform_data, verification_code, datetime.timedelta(minutes=5)
-        )
-        client.messages.create(
-            body=f"[인터리뷰] 인증코드는 {verification_code}입니다.",
-            from_=TWILIO_PHONE_NUMBER,
-            to=data.platform_data,
-        )
+        .first()
+    )
+    if user_info is None or user_info.name != data.name:
+        raise not_match_exception()
+    verification_code = generate_verification_code(6)
+    await DB_VERIFICATION_CODE.set(
+        data.phone, verification_code, datetime.timedelta(minutes=5)
+    )
+    client.messages.create(
+        body=f"[인터리뷰] 인증코드는 {verification_code}입니다.",
+        from_=TWILIO_PHONE_NUMBER,
+        to=data.phone,
+    )
 
 
 @router.post("/find/username/verification")
 async def verify_code_for_username(
     data: VerifyCodeForUsername, db: Session = Depends(get_db)
 ) -> dict:
-    if await DB_VERIFICATION_CODE.get(f"{data.platform_data}") != data.code:
+    if await DB_VERIFICATION_CODE.get(f"{data.phone}") != data.code:
         raise not_verification_exception()
-    if data.platform == Platform.email:
-        user_info = (
-            db.query(UserInfo).filter(UserInfo.email == data.platform_data).first()
+    valid_phone = get_valid_phone(data.phone)
+    user_info = (
+        db.query(UserInfo)
+        .filter(
+            UserInfo.phone_country_code == str(valid_phone.country_code),
+            UserInfo.phone_national_number == str(valid_phone.national_number),
         )
-    elif data.platform == Platform.phone:
-        valid_phone = get_valid_phone(data.platform_data)
-        user_info = (
-            db.query(UserInfo)
-            .filter(
-                UserInfo.phone_country_code == valid_phone.country_code,
-                UserInfo.phone_national_number == valid_phone.national_number,
-            )
-            .first()
-        )
-    else:
-        raise not_match_exception()
+        .first()
+    )
     return {"username": user_info.user.username}
 
 
@@ -205,7 +171,7 @@ async def get_reset_password_link(
     user = (
         db.query(User)
         .join(UserInfo, User.id == UserInfo.user_id)
-        .filter(User.username == data.username, UserInfo.email == data.email)
+        .filter(User.username == data.username, UserInfo.name == data.name)
         .first()
     )
     if not user:
@@ -213,7 +179,7 @@ async def get_reset_password_link(
     verification_code = generate_verification_code(6)
     message = MessageSchema(
         subject="[인터리뷰] 비밀번호 재설정 링크가 도착했습니다.",
-        recipients=[user.email],
+        recipients=[user.username],
         template_body={
             "link": f"{DASHBOARD_HOST}/accounts/find/password/reset?username={user.username}&code={verification_code}",
         },

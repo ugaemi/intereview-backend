@@ -9,7 +9,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(length=50), unique=True, index=True)
-    password = Column(String(length=20))
+    password = Column(String(length=100))
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, default=func.now())
     joined_datetime = Column(DateTime, default=func.now())
