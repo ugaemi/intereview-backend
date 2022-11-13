@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base, SessionLocal
+from app.mongodb import mongodb
 from app.routers.api.v1 import accounts, career
 
 Base.metadata.create_all(bind=engine)
@@ -39,3 +40,13 @@ async def db_session_middleware(request: Request, call_next) -> Response:
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+
+@app.on_event("startup")
+def on_app_start():
+    mongodb.connect()
+
+
+@app.on_event("shutdown")
+def on_app_shutdown():
+    mongodb.close()
