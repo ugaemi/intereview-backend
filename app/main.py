@@ -3,12 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base, SessionLocal
 from app.mongodb import mongodb
-from app.routers.api.v1 import accounts
+from app.routers.api.v1 import accounts, career
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 app.include_router(accounts.router)
+app.include_router(career.router)
 
 origins = [
     "http://localhost",
