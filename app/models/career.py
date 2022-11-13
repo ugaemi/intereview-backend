@@ -1,7 +1,23 @@
+from odmantic import Model
 from sqlalchemy import Column, Integer, ForeignKey, String, DateTime, func, Date
 from sqlalchemy.orm import relationship, backref
 
 from app.database import Base
+
+
+class CompanyBasicInfo(Model):
+    name: str
+    corporate_registration_number: str
+    company_registration_number: str
+    address: str
+    zip_code: str
+    homepage_url: str
+    phone: str
+    base_date: str
+    keyword: str
+
+    class Config:
+        collection = "companies"
 
 
 class Company(Base):

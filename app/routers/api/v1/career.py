@@ -1,16 +1,15 @@
-from datetime import datetime
 from typing import List
 
-import requests
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.config import COMPANY_SEARCH_API_ENDPOINT, COMPANY_OPEN_API_KEY
 from app.database import get_db
 from app.models.accounts import User
-from app.models.career import UserCareer
+from app.models.career import UserCareer, CompanyBasicInfo
+from app.mongodb import mongodb
 from app.routers.api.v1.accounts import get_current_user
 from app.schemas.career import SimpleCareer
+from app.services.career import CompanyScraper
 
 router = APIRouter(
     prefix="/api/v1/career",
@@ -27,11 +26,27 @@ async def get_simple_career(
 
 @router.get("/search/company")
 async def search_company(keyword: str, page: int):
-    response = requests.get(
-        f"{COMPANY_SEARCH_API_ENDPOINT}?serviceKey={COMPANY_OPEN_API_KEY}&pageNo={page}"
-        f"&numOfRows=10&resultType=json&corpNm={keyword}&basDt={datetime.now().strftime('%Y%m%d')}",
-        verify=False,
-    )
-    if response.status_code == 200:
-        result = response.json()
-        print(result)
+    if await mongodb.engine.find_one(
+        CompanyBasicInfo, CompanyBasicInfo.keyword == keyword
+    ):
+        return await mongodb.engine.find(
+            CompanyBasicInfo, CompanyBasicInfo.keyword == keyword
+        )
+    company_scraper = CompanyScraper()
+    if data := company_scraper.search(keyword, page=page):
+        company_basic_infos = []
+        for company in data:
+            company_basic_info = CompanyBasicInfo(
+                keyword=keyword,
+                name=company["corpNm"],
+                corporate_registration_number=company["crno"],
+                company_registration_number=company["bzno"],
+                address=company["enpBsadr"],
+                zip_code=company["enpOzpno"],
+                homepage_url=company["enpHmpgUrl"],
+                phone=company["enpTlno"],
+                base_date=company_scraper.base_date,
+            )
+            company_basic_infos.append(company_basic_info)
+        await mongodb.engine.save_all(company_basic_infos)
+        return company_basic_infos

@@ -19,8 +19,3 @@ TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER")
 DASHBOARD_HOST = "http://localhost:3000"
 
 RDS_HOST = config("RDS_HOST")
-
-COMPANY_OPEN_API_KEY = config("COMPANY_OPEN_API_KEY")
-COMPANY_SEARCH_API_ENDPOINT = (
-    "https://apis.data.go.kr/1160100/service/GetCorpBasicInfoService/getCorpOutline"
-)
