@@ -1,5 +1,4 @@
 import datetime
-from datetime import timedelta
 
 from fastapi import Depends, APIRouter
 from fastapi.security import OAuth2PasswordRequestForm
@@ -34,8 +33,10 @@ from app.services.accounts import (
     oauth2_bearer,
     generate_verification_code,
     get_valid_phone,
+    create_refresh_token,
 )
 from app.twilio import client
+from app.utils.security import OAuth2RefreshRequestForm
 
 router = APIRouter(
     prefix="/api/v1/accounts",
@@ -74,14 +75,37 @@ async def login_for_access_token(
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise token_exception()
-    token_expires = timedelta(minutes=20)
-    token = create_access_token(user.username, user.id, expires_delta=token_expires)
+    access_token = create_access_token(user.username, user.id)
+    refresh_token = create_refresh_token(user.username, user.id)
     return {
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "Bearer",
         "username": user.username,
         "id": user.id,
     }
+
+
+@router.post("/token/refresh")
+async def refresh_access_token(form_data: OAuth2RefreshRequestForm = Depends()):
+    try:
+        payload = jwt.decode(
+            form_data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM]
+        )
+        username: str = payload.get("sub")
+        user_id: int = payload.get("id")
+        if username is None or user_id is None:
+            raise get_user_exception()
+        access_token = create_access_token(username, user_id)
+        return {
+            "access_token": access_token,
+            "refresh_token": form_data.refresh_token,
+            "token_type": "Bearer",
+            "username": username,
+            "id": user_id,
+        }
+    except JWTError:
+        raise get_user_exception()
 
 
 @router.get("/me")
