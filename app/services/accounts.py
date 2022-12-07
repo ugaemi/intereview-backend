@@ -1,7 +1,6 @@
 import random
 import string
 from datetime import timedelta, datetime
-from typing import Optional
 
 import phonenumbers
 from fastapi.security import OAuth2PasswordBearer
@@ -10,7 +9,12 @@ from passlib.context import CryptContext
 from phonenumbers import PhoneNumber
 from phonenumbers.phonenumberutil import NumberParseException
 
-from app.config import SECRET_KEY, ALGORITHM
+from app.config import (
+    SECRET_KEY,
+    ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
+)
 from app.models.accounts import User
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -35,16 +39,28 @@ def authenticate_user(username: str, password: str, db) -> bool | User:
     return user
 
 
-def create_access_token(
-    username: str, user_id: int, expires_delta: Optional[timedelta] = None
-) -> str:
-    encode = {"sub": username, "id": user_id}
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=20)
-    encode.update({"exp": expire})
-    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+def create_access_token(username: str, user_id: int) -> str:
+    return jwt.encode(
+        {
+            "sub": username,
+            "id": user_id,
+            "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def create_refresh_token(username: str, user_id: int) -> str:
+    return jwt.encode(
+        {
+            "sub": username,
+            "id": user_id,
+            "exp": datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
 
 
 def generate_verification_code(size: int) -> str:
