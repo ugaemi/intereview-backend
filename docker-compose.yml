@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:13-alpine
+    container_name: int-postgres
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "5432:5432"
+
+  fastapi:
+    container_name: int-fastapi
+    build: .
+    env_file:
+      - .env
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+    depends_on:
+      - postgres
+
+  nginx:
+    image: nginx:latest
+    container_name: int-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./config:/etc/nginx/conf.d
+    command:
+      "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    depends_on:
+      - fastapi

@@ -19,4 +19,7 @@ TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER")
 
 DASHBOARD_HOST = "http://localhost:3000"
 
-RDS_HOST = config("RDS_HOST")
+RDS_HOST = (
+    f"postgresql://{config('POSTGRES_USER')}:{config('POSTGRES_PASSWORD')}"
+    f"@{config('POSTGRES_HOST')}:{config('POSTGRES_PORT')}/{config('POSTGRES_DB')}"
+)

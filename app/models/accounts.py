@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship, backref
 
@@ -12,7 +14,7 @@ class User(Base):
     password = Column(String(length=100))
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, default=func.now())
-    joined_datetime = Column(DateTime, default=func.now())
+    joined_datetime: datetime = Column(DateTime, default=func.now())
     withdrawal_datetime = Column(DateTime, nullable=True)
     created_datetime = Column(DateTime, default=func.now())
     updated_datetime = Column(
