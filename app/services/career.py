@@ -1,3 +1,4 @@
+from dataclasses import field, dataclass
 from datetime import datetime
 from typing import List
 
@@ -6,13 +7,15 @@ from dateutil.relativedelta import relativedelta
 from decouple import config
 
 
+@dataclass
 class CompanyScraper:
+    base_date: str = field(init=False)
     OPEN_API_KEY = config("COMPANY_OPEN_API_KEY")
     SEARCH_API_ENDPOINT = (
         "https://apis.data.go.kr/1160100/service/GetCorpBasicInfoService/getCorpOutline"
     )
 
-    def __init__(self):
+    def __post_init__(self):
         self.base_date = (datetime.now() + relativedelta(days=-7)).strftime("%Y%m%d")
 
     def search(self, keyword: str, page: int) -> List[dict]:
@@ -25,5 +28,4 @@ class CompanyScraper:
             result = response.json()
             companies = result["response"]["body"]["items"]["item"]
             return companies
-        print(response)
         return []
