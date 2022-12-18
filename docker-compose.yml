@@ -1,14 +1,14 @@
 version: "3.8"
 
 services:
-  postgres:
-    image: postgres:13-alpine
-    container_name: int-postgres
+  redis:
+    image: redis:7.0-alpine
+    container_name: int-redis
     env_file:
       - .env
-    restart: always
+    command: redis-server
     ports:
-      - "5432:5432"
+      - "6379:6379"
 
   fastapi:
     container_name: int-fastapi
@@ -21,10 +21,10 @@ services:
     volumes:
       - ./app:/code/app
     depends_on:
-      - postgres
+      - redis
 
   nginx:
-    image: nginx:latest
+    image: nginx:1.23-alpine
     container_name: int-nginx
     restart: always
     ports:
