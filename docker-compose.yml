@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7.0-alpine
+    container_name: int-redis
+    env_file:
+      - .env
+    command: redis-server
+    ports:
+      - "6379:6379"
+
+  fastapi:
+    container_name: int-fastapi
+    build: .
+    env_file:
+      - .env
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+    depends_on:
+      - redis
+
+  nginx:
+    image: nginx:1.23-alpine
+    container_name: int-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./config:/etc/nginx/conf.d
+    command:
+      "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    depends_on:
+      - fastapi
